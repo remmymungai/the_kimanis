@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir=no --import-alias=\"@/*\" --use-npm)",
+      "Read(//private/tmp/**)",
+      "Bash(npx create-next-app@14 kimanis_temp --typescript --tailwind --eslint --app --src-dir=no --import-alias=\"@/*\" --use-npm)",
+      "Bash(mkdir -p /Users/remmy/Documents/Code/the_kimanis/types /Users/remmy/Documents/Code/the_kimanis/lib/supabase /Users/remmy/Documents/Code/the_kimanis/lib/realtime /Users/remmy/Documents/Code/the_kimanis/lib/scoring /Users/remmy/Documents/Code/the_kimanis/hooks /Users/remmy/Documents/Code/the_kimanis/components/game/who-said-what /Users/remmy/Documents/Code/the_kimanis/components/game/trivia /Users/remmy/Documents/Code/the_kimanis/components/game/find-the-guest /Users/remmy/Documents/Code/the_kimanis/components/game/price-is-right /Users/remmy/Documents/Code/the_kimanis/components/game/open-ended /Users/remmy/Documents/Code/the_kimanis/components/game/finish-the-sentence /Users/remmy/Documents/Code/the_kimanis/components/game/confessions-wall /Users/remmy/Documents/Code/the_kimanis/components/shared /Users/remmy/Documents/Code/the_kimanis/components/admin /Users/remmy/Documents/Code/the_kimanis/app/join /Users/remmy/Documents/Code/the_kimanis/app/play/\\\\[gameId\\\\] /Users/remmy/Documents/Code/the_kimanis/app/wall /Users/remmy/Documents/Code/the_kimanis/app/admin/dashboard /Users/remmy/Documents/Code/the_kimanis/app/admin/games/new /Users/remmy/Documents/Code/the_kimanis/app/admin/games/\\\\[id\\\\]/qrcode /Users/remmy/Documents/Code/the_kimanis/app/admin/confessions /Users/remmy/Documents/Code/the_kimanis/supabase/migrations /Users/remmy/Documents/Code/the_kimanis/supabase/functions/score-question /Users/remmy/Documents/Code/the_kimanis/supabase/functions/activate-game /Users/remmy/Documents/Code/the_kimanis/supabase/functions/close-question-timer)",
+      "Bash(npm install *)",
+      "Bash(nvm ls *)",
+      "Bash(mkdir -p /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/question /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/activate /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/complete /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/new)"
+    ],
+    "additionalDirectories": [
+      "/Users/remmy/Documents/Code/the_kimanis/app/play",
+      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/[id]"
+    ]
+  }
+}
