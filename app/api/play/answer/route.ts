@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { broadcastGameEvent } from "@/lib/realtime/broadcaster";
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +51,13 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
+
+    // Broadcast so admin counter updates in real time (no CDC needed)
+    broadcastGameEvent(game_instance_id, {
+      type: "ANSWER_RECEIVED",
+      game_instance_id,
+      question_id,
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true });
   } catch {

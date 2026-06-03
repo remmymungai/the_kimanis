@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
 import { Leaderboard } from "@/components/shared/Leaderboard";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { GameUIState } from "@/hooks/useGameState";
@@ -13,7 +14,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
   closesAt: Date | null;
 };
 
@@ -72,7 +73,7 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
         )
       );
       setActiveCell(null);
-      onAnswer(optionText);
+      onAnswer(optionId, optionText);
       setLoading(false);
     },
     [guestId, gameInstanceId, onAnswer]
@@ -86,6 +87,7 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
         <div className="text-5xl">🎉</div>
         <h2 className="text-2xl font-bold text-dark text-center">Time&apos;s Up!</h2>
         <Leaderboard entries={uiState.finalLeaderboard} highlightGuestId={guestId} title="Final Scores" />
+        <BackToLobbyButton />
       </div>
     );
   }

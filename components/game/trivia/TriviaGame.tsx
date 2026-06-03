@@ -5,7 +5,9 @@ import { QuestionPrompt } from "@/components/shared/QuestionPrompt";
 import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { AnswerSubmitted } from "@/components/shared/AnswerSubmitted";
 import { Leaderboard } from "@/components/shared/Leaderboard";
+import { ScoreReveal } from "@/components/shared/ScoreReveal";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import type { GameUIState } from "@/hooks/useGameState";
 
@@ -13,7 +15,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
 const OPTION_STYLES = [
@@ -26,8 +28,8 @@ const OPTION_STYLES = [
 export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
   const handleChoiceClick = useCallback(
     async (optionId: string, optionText: string) => {
-      onAnswer(optionText);
       if (uiState.phase !== "question") return;
+      onAnswer(optionId, optionText);
       await fetch("/api/play/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,16 +98,19 @@ export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props
   }
 
   if (uiState.phase === "result") {
+    const correctText = uiState.correctOptionId
+      ? uiState.question.options?.find(o => o.id === uiState.correctOptionId)?.text
+      : undefined;
+
     return (
-      <div className="min-h-dvh bg-cream flex flex-col overflow-y-auto pb-safe pt-safe">
-        <div className="px-4 pt-6 pb-4 text-center">
-          {uiState.correctOptionId && (
-            <p className="text-sm text-muted-foreground mb-1">
-              Answer: <span className="font-bold text-dark">
-                {uiState.question.options?.find(o => o.id === uiState.correctOptionId)?.text}
-              </span>
-            </p>
-          )}
+      <div className="min-h-dvh bg-cream flex flex-col overflow-y-auto pb-safe">
+        <div className="flex-shrink-0">
+          <ScoreReveal
+            pointsAwarded={uiState.myPoints}
+            isCorrect={uiState.myIsCorrect}
+            correctAnswer={correctText}
+            className="pt-safe"
+          />
         </div>
         {uiState.top10.length > 0 && (
           <div className="px-4 pb-8">
@@ -122,6 +127,7 @@ export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props
         <div className="text-5xl">🎉</div>
         <h2 className="text-2xl font-bold text-dark text-center">Game Over!</h2>
         <Leaderboard entries={uiState.finalLeaderboard} highlightGuestId={guestId} title="Final Scores" />
+        <BackToLobbyButton />
       </div>
     );
   }

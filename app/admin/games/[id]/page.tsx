@@ -48,11 +48,17 @@ export default function GameControlPage() {
       setLoading(false);
     });
 
-    // Live answer count
+    // Live answer count via Broadcast (no CDC table setup needed)
     const sub = supabase
-      .channel(`admin:game:${gameId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "answers", filter: `game_instance_id=eq.${gameId}` }, () => {
-        setAnswerCount((c) => c + 1);
+      .channel(`game:${gameId}`)
+      .on("broadcast", { event: "game_event" }, (payload) => {
+        const msg = payload.payload;
+        if (msg.type === "ANSWER_RECEIVED") {
+          setAnswerCount((c) => c + 1);
+        }
+        if (msg.type === "QUESTION_REVEAL") {
+          setAnswerCount(0);
+        }
       })
       .subscribe();
 
@@ -221,6 +227,27 @@ export default function GameControlPage() {
               <div className="text-center py-4">
                 <p className="text-white/50">Game completed! 🎉</p>
               </div>
+            )}
+
+            {["pending", "completed"].includes(game.status) && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`Delete "${game.title}"? This cannot be undone.`)) return;
+                  setActionLoading(true);
+                  const res = await fetch(`/api/admin/games/${gameId}`, { method: "DELETE" });
+                  if (res.ok) router.replace("/admin/dashboard");
+                  else {
+                    const { error } = await res.json();
+                    setActionError(error ?? "Failed to delete game.");
+                    setActionLoading(false);
+                  }
+                }}
+                disabled={actionLoading}
+                className="w-full py-3 text-blush/60 text-sm font-medium hover:text-blush transition-colors
+                           disabled:opacity-40"
+              >
+                🗑 Delete this game
+              </button>
             )}
           </div>
         </div>

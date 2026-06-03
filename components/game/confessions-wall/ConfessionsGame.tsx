@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { GameUIState } from "@/hooks/useGameState";
@@ -9,7 +10,7 @@ import type { GameUIState } from "@/hooks/useGameState";
 type Props = {
   uiState: GameUIState;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
 export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
@@ -27,7 +28,7 @@ export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
       content: text.trim(),
     });
 
-    onAnswer(text.trim());
+    onAnswer(null, text.trim());
     setSubmitted(true);
     setLoading(false);
   }, [text, gameInstanceId, onAnswer]);
@@ -40,6 +41,7 @@ export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
         <div className="text-5xl">🤫</div>
         <h2 className="text-2xl font-bold text-dark text-center">Secrets are out!</h2>
         <p className="text-muted-foreground text-center">Check the big screen for the confessions!</p>
+        <BackToLobbyButton />
       </div>
     );
   }

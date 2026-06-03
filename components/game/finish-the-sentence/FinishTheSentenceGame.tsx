@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { TriviaGame } from "@/components/game/trivia/TriviaGame";
 import { OpenEndedGame } from "@/components/game/open-ended/OpenEndedGame";
 import type { GameUIState } from "@/hooks/useGameState";
@@ -9,7 +8,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
 export function FinishTheSentenceGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {

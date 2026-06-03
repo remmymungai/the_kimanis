@@ -40,6 +40,8 @@ export type RealtimeMessage =
       correct_option_id: string | null;
       correct_value?: number;
       top_10: LeaderboardEntry[];
+      /** Per-guest score for this question: { [guest_id]: { points_awarded, is_correct } } */
+      player_points?: Record<string, { points_awarded: number; is_correct: boolean | null }>;
     }
   | {
       type: "GAME_COMPLETED";
@@ -54,4 +56,9 @@ export type RealtimeMessage =
   | {
       type: "ADMIN_ANNOUNCEMENT";
       message: string;
+    }
+  | {
+      type: "ANSWER_RECEIVED";
+      game_instance_id: string;
+      question_id: string;
     };

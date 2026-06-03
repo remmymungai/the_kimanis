@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useGameChannel } from "@/lib/realtime/useGameChannel";
 import { useGameState } from "@/hooks/useGameState";
 import { WhoSaidWhatGame } from "./who-said-what/WhoSaidWhatGame";
@@ -18,12 +19,21 @@ type Props = {
 };
 
 export function GameDispatcher({ game, guestId }: Props) {
+  const router = useRouter();
   const { uiState, handleMessage, submitAnswer } = useGameState(game.id);
 
   useGameChannel({
     gameInstanceId: game.id,
-    onMessage: handleMessage,
+    // Bind guestId so QUESTION_CLOSED can look up this player's score
+    onMessage: (msg) => handleMessage(msg, guestId),
   });
+
+  // Auto-redirect to lobby 8 seconds after game completes
+  useEffect(() => {
+    if (uiState.phase !== "completed") return;
+    const t = setTimeout(() => router.replace("/play"), 8000);
+    return () => clearTimeout(t);
+  }, [uiState.phase, router]);
 
   // Find the Guest: derive closesAt from game config
   const findGuestClosesAt =

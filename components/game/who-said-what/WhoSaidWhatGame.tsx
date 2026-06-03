@@ -7,30 +7,28 @@ import { AnswerSubmitted } from "@/components/shared/AnswerSubmitted";
 import { Leaderboard } from "@/components/shared/Leaderboard";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
 import { ScoreReveal } from "@/components/shared/ScoreReveal";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import type { GameUIState } from "@/hooks/useGameState";
-import type { LeaderboardEntry } from "@/types/realtime";
 
 type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
-  leaderboard?: LeaderboardEntry[];
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
-// Who Said What always has exactly 2 options: Remmy or Mbete
 const CHOICE_STYLES = [
   { bg: "bg-olive", text: "text-white", activeBg: "active:bg-olive/80" },
   { bg: "bg-blush", text: "text-white", activeBg: "active:bg-blush/80" },
 ];
 
-export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, leaderboard }: Props) {
+export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
   const handleChoiceClick = useCallback(
     async (optionId: string, optionText: string) => {
-      onAnswer(optionText);
-
       if (uiState.phase !== "question") return;
+      // Optimistically update UI before awaiting network
+      onAnswer(optionId, optionText);
       await fetch("/api/play/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,7 +53,6 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, le
 
     return (
       <div className="flex flex-col min-h-dvh bg-cream pb-safe">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-safe pt-4 pb-2">
           <span className="text-xs font-semibold uppercase tracking-widest text-olive/70">
             Who Said What?
@@ -63,7 +60,6 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, le
           {closesAt && <CountdownTimer closesAt={closesAt} />}
         </div>
 
-        {/* Question */}
         <div className="flex-1 flex items-center justify-center px-6 py-4">
           <QuestionPrompt
             prompt={question.prompt}
@@ -73,7 +69,6 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, le
           />
         </div>
 
-        {/* Two big choice buttons */}
         <div className="px-5 pb-6 grid grid-cols-2 gap-4">
           {options.slice(0, 2).map((opt, i) => {
             const style = CHOICE_STYLES[i] ?? CHOICE_STYLES[0];
@@ -100,25 +95,23 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, le
     return (
       <div className="min-h-dvh bg-cream flex flex-col items-center justify-center">
         <AnswerSubmitted answer={uiState.answer} />
-        {uiState.closesAt && (
-          <CountdownTimer closesAt={uiState.closesAt} size={56} />
-        )}
+        {uiState.closesAt && <CountdownTimer closesAt={uiState.closesAt} size={56} />}
       </div>
     );
   }
 
   if (uiState.phase === "result") {
-    const myAnswer = leaderboard?.find((e) => e.guest_id === guestId);
-    const isCorrect = uiState.correctOptionId !== null
-      ? uiState.question.options?.find(o => o.id === uiState.correctOptionId)?.text !== undefined
-      : null;
+    const correctText = uiState.correctOptionId
+      ? uiState.question.options?.find(o => o.id === uiState.correctOptionId)?.text
+      : undefined;
 
     return (
       <div className="min-h-dvh bg-cream flex flex-col overflow-y-auto pb-safe">
         <div className="flex-shrink-0">
           <ScoreReveal
-            pointsAwarded={myAnswer ? 0 : 0} // actual points from leaderboard diff
-            isCorrect={null}
+            pointsAwarded={uiState.myPoints}
+            isCorrect={uiState.myIsCorrect}
+            correctAnswer={correctText}
             className="pt-safe"
           />
         </div>
@@ -137,6 +130,7 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer, le
         <div className="text-5xl">🎉</div>
         <h2 className="text-2xl font-bold text-dark text-center">Game Over!</h2>
         <Leaderboard entries={uiState.finalLeaderboard} highlightGuestId={guestId} title="Final Scores" />
+        <BackToLobbyButton />
       </div>
     );
   }

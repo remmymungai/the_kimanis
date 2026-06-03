@@ -6,6 +6,7 @@ import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { AnswerSubmitted } from "@/components/shared/AnswerSubmitted";
 import { Leaderboard } from "@/components/shared/Leaderboard";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn, formatKES } from "@/lib/utils";
 import type { GameUIState } from "@/hooks/useGameState";
 
@@ -13,7 +14,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
 export function PriceIsRightGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
@@ -36,7 +37,7 @@ export function PriceIsRightGame({ uiState, guestId, gameInstanceId, onAnswer }:
         raw_answer: String(numeric),
       }),
     });
-    onAnswer(formatKES(numeric));
+    onAnswer(null, formatKES(numeric));
     setLoading(false);
   }, [uiState, guestId, gameInstanceId, amount, onAnswer]);
 
@@ -138,6 +139,7 @@ export function PriceIsRightGame({ uiState, guestId, gameInstanceId, onAnswer }:
         <div className="text-5xl">💰</div>
         <h2 className="text-2xl font-bold text-dark text-center">Game Over!</h2>
         <Leaderboard entries={uiState.finalLeaderboard} highlightGuestId={guestId} title="Final Scores" />
+        <BackToLobbyButton />
       </div>
     );
   }

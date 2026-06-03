@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
+import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import type { GameUIState } from "@/hooks/useGameState";
 
@@ -9,7 +10,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (answer: string) => void;
+  onAnswer: (optionId: string | null, displayText: string) => void;
   /** For song_request, we collect 3 fields. For others, just 1 */
   variant?: "song_request" | "single";
 };
@@ -41,7 +42,7 @@ export function OpenEndedGame({ uiState, guestId, gameInstanceId, onAnswer, vari
         raw_answer: answer,
       }),
     });
-    onAnswer(variant === "song_request" ? songTitle : text);
+    onAnswer(null, variant === "song_request" ? songTitle : text);
     setSubmitted(true);
     setLoading(false);
   }, [uiState, guestId, gameInstanceId, text, songTitle, artist, variant, onAnswer]);
@@ -143,6 +144,7 @@ export function OpenEndedGame({ uiState, guestId, gameInstanceId, onAnswer, vari
         <div className="text-5xl">🙏</div>
         <h2 className="text-2xl font-bold text-dark text-center">Thanks for your answer!</h2>
         <p className="text-muted-foreground text-center">The hosts will review all responses shortly.</p>
+        <BackToLobbyButton />
       </div>
     );
   }

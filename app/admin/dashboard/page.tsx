@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [games, setGames] = useState<GameInstance[]>([]);
   const [guestCount, setGuestCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -38,6 +39,19 @@ export default function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .then(({ count }) => setGuestCount(count ?? 0));
   }, []);
+
+  async function handleDelete(gameId: string, title: string) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setDeletingId(gameId);
+    const res = await fetch(`/api/admin/games/${gameId}`, { method: "DELETE" });
+    if (res.ok) {
+      setGames((prev) => prev.filter((g) => g.id !== gameId));
+    } else {
+      const { error } = await res.json();
+      alert(error ?? "Failed to delete game.");
+    }
+    setDeletingId(null);
+  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -83,14 +97,16 @@ export default function DashboardPage() {
         ) : (
           games.map((game) => {
             const badge = STATUS_BADGE[game.status] ?? STATUS_BADGE.pending;
+            const canDelete = ["pending", "completed"].includes(game.status);
             return (
               <div
                 key={game.id}
-                onClick={() => router.push(`/admin/games/${game.id}`)}
-                className="bg-white/5 rounded-2xl p-4 border border-white/10 cursor-pointer
-                           active:scale-98 transition-all hover:bg-white/10"
+                className="bg-white/5 rounded-2xl p-4 border border-white/10"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div
+                  className="flex items-start justify-between gap-3 cursor-pointer"
+                  onClick={() => router.push(`/admin/games/${game.id}`)}
+                >
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-white truncate">{game.title}</p>
                     <p className="text-white/50 text-sm mt-0.5">
@@ -101,6 +117,17 @@ export default function DashboardPage() {
                     {badge.label}
                   </span>
                 </div>
+                {canDelete && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <button
+                      onClick={() => handleDelete(game.id, game.title)}
+                      disabled={deletingId === game.id}
+                      className="text-blush/70 text-xs font-medium hover:text-blush transition-colors disabled:opacity-40"
+                    >
+                      {deletingId === game.id ? "Deleting..." : "🗑 Delete game"}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
