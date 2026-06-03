@@ -37,47 +37,20 @@ export function useGuestSession() {
   }, []);
 
   const join = useCallback(
-    async (eventSlug: string, displayName: string): Promise<{ error?: string }> => {
-      const supabase = createClient();
+    async (_eventSlug: string, displayName: string): Promise<{ error?: string }> => {
+      // Centralized in the API: handles uniqueness, session reclaim, and the
+      // GUEST_JOINED broadcast that powers the admin lobby.
+      const res = await fetch("/api/play/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: displayName.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) return { error: json.error ?? "Could not join the party." };
 
-      // Look up event
-      const { data: event, error: eErr } = await supabase
-        .from("events")
-        .select("id")
-        .eq("slug", eventSlug)
-        .eq("is_active", true)
-        .single();
-
-      if (eErr || !event) return { error: "Event not found." };
-
-      // Check if name exists (returning guest)
-      const { data: existing } = await supabase
-        .from("guests")
-        .select("*")
-        .eq("event_id", event.id)
-        .eq("display_name", displayName.trim())
-        .single();
-
-      if (existing) {
-        storeSession(existing.id, existing.display_name);
-        setState({ status: "authenticated", guest: existing as Guest });
-        return {};
-      }
-
-      // New guest
-      const { data: newGuest, error: gErr } = await supabase
-        .from("guests")
-        .insert({ event_id: event.id, display_name: displayName.trim() })
-        .select()
-        .single();
-
-      if (gErr || !newGuest) {
-        if (gErr?.code === "23505") return { error: "That name is already taken! Try adding your surname." };
-        return { error: "Could not join the party. Please try again." };
-      }
-
-      storeSession(newGuest.id, newGuest.display_name);
-      setState({ status: "authenticated", guest: newGuest as Guest });
+      const guest = json.guest as Guest;
+      storeSession(guest.id, guest.display_name);
+      setState({ status: "authenticated", guest });
       return {};
     },
     []

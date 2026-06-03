@@ -15,6 +15,9 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
+  gameTitle: string;
+  /** Header label override (used when Finish-the-Sentence reuses this UI). */
+  headerLabel?: string;
   onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
@@ -25,7 +28,7 @@ const OPTION_STYLES = [
   "bg-[#457B9D] text-white",
 ];
 
-export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
+export function TriviaGame({ uiState, guestId, gameInstanceId, gameTitle, headerLabel, onAnswer }: Props) {
   const handleChoiceClick = useCallback(
     async (optionId: string, optionText: string) => {
       if (uiState.phase !== "question") return;
@@ -44,17 +47,18 @@ export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props
     [uiState, guestId, gameInstanceId, onAnswer]
   );
 
-  if (uiState.phase === "waiting") return <WaitingLobby />;
+  if (uiState.phase === "waiting" || uiState.phase === "live") return <WaitingLobby gameTitle={gameTitle} />;
 
   if (uiState.phase === "question") {
     const { question, closesAt } = uiState;
-    const options = question.options ?? [];
+    // Only render real options (defends against any blank slots)
+    const options = (question.options ?? []).filter((o) => o.text.trim().length > 0);
 
     return (
       <div className="flex flex-col min-h-dvh bg-cream pb-safe">
         <div className="flex items-center justify-between px-5 pt-safe pt-4 pb-2">
           <span className="text-xs font-semibold uppercase tracking-widest text-olive/70">
-            Know the Couple?
+            {headerLabel ?? "Know the Couple?"}
           </span>
           {closesAt && <CountdownTimer closesAt={closesAt} />}
         </div>
@@ -68,9 +72,9 @@ export function TriviaGame({ uiState, guestId, gameInstanceId, onAnswer }: Props
           />
         </div>
 
-        {/* 2×2 Kahoot-style grid */}
-        <div className="px-4 pb-6 grid grid-cols-2 gap-3">
-          {options.slice(0, 4).map((opt, i) => (
+        {/* Kahoot-style grid — 1 column for 2 options, 2 columns for 3-4 */}
+        <div className={cn("px-4 pb-6 grid gap-3", options.length <= 2 ? "grid-cols-1" : "grid-cols-2")}>
+          {options.map((opt, i) => (
             <button
               key={opt.id}
               onClick={() => handleChoiceClick(opt.id, opt.text)}

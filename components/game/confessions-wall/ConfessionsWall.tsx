@@ -34,27 +34,36 @@ export function ConfessionsWall({ gameInstanceId }: Props) {
         if (data) setConfessions(data as Confession[]);
       });
 
-    // Live stream new confessions
+    // Live stream approved confessions via Broadcast (admin approval emits CONFESSION_LIVE)
     const channel = supabase
-      .channel(`confessions:${gameInstanceId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "confessions",
-          filter: `game_instance_id=eq.${gameInstanceId}`,
-        },
-        (payload) => {
-          const c = payload.new as Confession & { is_approved: boolean };
-          if (c.is_approved) {
-            setConfessions((prev) => [...prev, { id: c.id, content: c.content, submitted_at: c.submitted_at }]);
-          }
+      .channel(`game:${gameInstanceId}`)
+      .on("broadcast", { event: "game_event" }, (payload) => {
+        const msg = payload.payload;
+        if (msg.type === "CONFESSION_LIVE") {
+          setConfessions((prev) =>
+            prev.some((c) => c.id === msg.id)
+              ? prev
+              : [...prev, { id: msg.id, content: msg.content, submitted_at: new Date().toISOString() }]
+          );
         }
-      )
+      })
       .subscribe();
 
+    // Safety poll in case a broadcast is missed
+    const poll = setInterval(() => {
+      supabase
+        .from("confessions")
+        .select("id, content, submitted_at")
+        .eq("game_instance_id", gameInstanceId)
+        .eq("is_approved", true)
+        .order("submitted_at", { ascending: true })
+        .then(({ data }) => {
+          if (data) setConfessions(data as Confession[]);
+        });
+    }, 5000);
+
     return () => {
+      clearInterval(poll);
       supabase.removeChannel(channel);
     };
   }, [gameInstanceId]);

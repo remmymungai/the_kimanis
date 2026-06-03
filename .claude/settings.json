@@ -10,11 +10,13 @@
       "Bash(mkdir -p /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/question /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/activate /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/\\\\[id\\\\]/complete /Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/new)",
       "Bash(curl -s -o /dev/null -w \"GET /join: %{http_code}\\\\n\" http://localhost:3000/join)",
       "Bash(curl -s -o /dev/null -w 'POST /api/play/answer \\(empty\\): %{http_code}\\\\n' -X POST http://localhost:3000/api/play/answer -H 'Content-Type: application/json' -d '{}')",
-      "Bash(curl -s -o /dev/null -w \"GET /admin: %{http_code}\\\\n\" http://localhost:3000/admin)"
+      "Bash(curl -s -o /dev/null -w \"GET /admin: %{http_code}\\\\n\" http://localhost:3000/admin)",
+      "Bash(mkdir -p \"/Users/remmy/Documents/Code/the_kimanis/app/api/play/confession\" \"/Users/remmy/Documents/Code/the_kimanis/app/api/admin/confessions/[id]\" \"/Users/remmy/Documents/Code/the_kimanis/app/api/admin/guests/[id]\" \"/Users/remmy/Documents/Code/the_kimanis/app/api/play/join\" \"/Users/remmy/Documents/Code/the_kimanis/app/admin/games/[id]/moderate\" \"/Users/remmy/Documents/Code/the_kimanis/app/admin/lobby\" \"/Users/remmy/Documents/Code/the_kimanis/app/display/[gameId]\")"
     ],
     "additionalDirectories": [
       "/Users/remmy/Documents/Code/the_kimanis/app/play",
-      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/[id]"
+      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/[id]",
+      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/confessions"
     ]
   }
 }

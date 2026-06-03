@@ -8,28 +8,37 @@ import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { GameUIState } from "@/hooks/useGameState";
+import type { GameStatus } from "@/types/game-config";
 import type { Question } from "@/types";
 
 type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
-  onAnswer: (optionId: string | null, displayText: string) => void;
+  gameTitle: string;
+  gameStatus: GameStatus;
   closesAt: Date | null;
+  onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
 type BingoCell = {
   question: Question;
   answered: boolean;
-  correct: boolean | null;
 };
 
-export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, closesAt }: Props) {
+export function FindTheGuestGame({
+  uiState,
+  guestId,
+  gameInstanceId,
+  gameTitle,
+  closesAt,
+  onAnswer,
+}: Props) {
   const [cells, setCells] = useState<BingoCell[]>([]);
   const [activeCell, setActiveCell] = useState<BingoCell | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expired, setExpired] = useState(false);
 
-  // Load all questions for this game instance
   useEffect(() => {
     const supabase = createClient();
     supabase
@@ -39,13 +48,7 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
       .order("index")
       .then(({ data }) => {
         if (data) {
-          setCells(
-            data.map((q) => ({
-              question: q as Question,
-              answered: false,
-              correct: null,
-            }))
-          );
+          setCells(data.map((q) => ({ question: q as Question, answered: false })));
         }
       });
   }, [gameInstanceId]);
@@ -53,7 +56,7 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
   const handleOptionSelect = useCallback(
     async (cell: BingoCell, optionId: string, optionText: string) => {
       setLoading(true);
-      const res = await fetch("/api/play/answer", {
+      await fetch("/api/play/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -63,14 +66,9 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
           raw_answer: optionId,
         }),
       });
-
-      const isCorrect = optionId === cell.question.correct_option_id;
+      // Mark answered (neutral — correctness is revealed at the end, no spoilers)
       setCells((prev) =>
-        prev.map((c) =>
-          c.question.id === cell.question.id
-            ? { ...c, answered: true, correct: isCorrect }
-            : c
-        )
+        prev.map((c) => (c.question.id === cell.question.id ? { ...c, answered: true } : c))
       );
       setActiveCell(null);
       onAnswer(optionId, optionText);
@@ -78,8 +76,6 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
     },
     [guestId, gameInstanceId, onAnswer]
   );
-
-  if (uiState.phase === "waiting") return <WaitingLobby message="Find the Guest is starting! Get ready to mingle!" />;
 
   if (uiState.phase === "completed") {
     return (
@@ -92,73 +88,78 @@ export function FindTheGuestGame({ uiState, guestId, gameInstanceId, onAnswer, c
     );
   }
 
+  if (uiState.phase !== "live") {
+    return <WaitingLobby gameTitle={gameTitle} />;
+  }
+
+  const answeredCount = cells.filter((c) => c.answered).length;
+
   return (
     <div className="min-h-dvh bg-cream flex flex-col pb-safe">
-      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-safe pt-4 pb-3">
         <div>
           <span className="text-xs font-semibold uppercase tracking-widest text-olive/70 block">
-            Find the Guest
+            {gameTitle}
           </span>
           <span className="text-sm text-muted-foreground">
-            {cells.filter((c) => c.answered).length}/{cells.length} found
+            {answeredCount}/{cells.length} answered
           </span>
         </div>
-        {closesAt && <CountdownTimer closesAt={closesAt} size={64} />}
+        {closesAt && !expired && (
+          <CountdownTimer closesAt={closesAt} size={64} onExpire={() => setExpired(true)} />
+        )}
       </div>
 
-      {/* Bingo grid */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <div className="grid grid-cols-2 gap-3">
-          {cells.map((cell) => (
-            <button
-              key={cell.question.id}
-              onClick={() => !cell.answered && setActiveCell(cell)}
-              disabled={cell.answered}
-              className={cn(
-                "rounded-2xl p-4 text-left border-2 transition-all min-h-[80px]",
-                "active:scale-95 duration-100",
-                cell.answered && cell.correct
-                  ? "bg-sage/20 border-sage text-sage"
-                  : cell.answered && !cell.correct
-                  ? "bg-muted border-border text-muted-foreground"
-                  : "bg-white border-border text-dark hover:border-olive"
-              )}
-            >
-              <span className="text-sm font-semibold leading-snug">
-                {cell.answered && cell.correct ? "✓ " : ""}
-                {cell.question.prompt}
-              </span>
-            </button>
-          ))}
+      {expired ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <div className="text-5xl">⏰</div>
+          <p className="text-dark font-semibold text-lg">Time&apos;s up!</p>
+          <p className="text-muted-foreground text-sm">Waiting for the final leaderboard on the big screen…</p>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="grid grid-cols-2 gap-3">
+            {cells.map((cell) => (
+              <button
+                key={cell.question.id}
+                onClick={() => !cell.answered && setActiveCell(cell)}
+                disabled={cell.answered}
+                className={cn(
+                  "rounded-2xl p-4 text-left border-2 transition-all min-h-[80px] active:scale-95 duration-100",
+                  cell.answered
+                    ? "bg-sage/15 border-sage/40 text-sage"
+                    : "bg-white border-border text-dark hover:border-olive"
+                )}
+              >
+                <span className="text-sm font-semibold leading-snug">
+                  {cell.answered ? "✓ " : ""}
+                  {cell.question.prompt}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Option overlay */}
       {activeCell && (
         <div className="fixed inset-0 bg-dark/60 flex items-end z-50" onClick={() => setActiveCell(null)}>
-          <div
-            className="w-full bg-white rounded-t-3xl p-6 pb-safe"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-base font-bold text-dark mb-1 text-balance">
-              {activeCell.question.prompt}
-            </p>
-            <p className="text-sm text-muted-foreground mb-5">
-              Who fits this description?
-            </p>
+          <div className="w-full bg-white rounded-t-3xl p-6 pb-safe" onClick={(e) => e.stopPropagation()}>
+            <p className="text-base font-bold text-dark mb-1 text-balance">{activeCell.question.prompt}</p>
+            <p className="text-sm text-muted-foreground mb-5">Who fits this description?</p>
             <div className="grid grid-cols-2 gap-3">
-              {(activeCell.question.options ?? []).map((opt) => (
-                <button
-                  key={opt.id}
-                  disabled={loading}
-                  onClick={() => handleOptionSelect(activeCell, opt.id, opt.text)}
-                  className="rounded-xl py-4 bg-cream border-2 border-border text-dark font-semibold
-                             active:scale-95 transition-all duration-100 active:bg-olive/10 active:border-olive"
-                >
-                  {opt.text}
-                </button>
-              ))}
+              {(activeCell.question.options ?? [])
+                .filter((opt) => opt.text.trim().length > 0)
+                .map((opt) => (
+                  <button
+                    key={opt.id}
+                    disabled={loading}
+                    onClick={() => handleOptionSelect(activeCell, opt.id, opt.text)}
+                    className="rounded-xl py-4 bg-cream border-2 border-border text-dark font-semibold
+                               active:scale-95 transition-all duration-100 active:bg-olive/10 active:border-olive"
+                  >
+                    {opt.text}
+                  </button>
+                ))}
             </div>
             <button
               onClick={() => setActiveCell(null)}

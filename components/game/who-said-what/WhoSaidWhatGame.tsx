@@ -15,6 +15,7 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
+  gameTitle: string;
   onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
@@ -23,7 +24,7 @@ const CHOICE_STYLES = [
   { bg: "bg-blush", text: "text-white", activeBg: "active:bg-blush/80" },
 ];
 
-export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
+export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, gameTitle, onAnswer }: Props) {
   const handleChoiceClick = useCallback(
     async (optionId: string, optionText: string) => {
       if (uiState.phase !== "question") return;
@@ -43,8 +44,8 @@ export function WhoSaidWhatGame({ uiState, guestId, gameInstanceId, onAnswer }: 
     [uiState, guestId, gameInstanceId, onAnswer]
   );
 
-  if (uiState.phase === "waiting") {
-    return <WaitingLobby message="Who Said What is starting..." />;
+  if (uiState.phase === "waiting" || uiState.phase === "live") {
+    return <WaitingLobby gameTitle={gameTitle} />;
   }
 
   if (uiState.phase === "question") {

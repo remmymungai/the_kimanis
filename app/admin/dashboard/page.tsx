@@ -65,7 +65,9 @@ export default function DashboardPage() {
       <header className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div>
           <h1 className="text-xl font-bold">Game Hub Admin</h1>
-          <p className="text-white/50 text-sm">{guestCount} guests joined</p>
+          <a href="/admin/lobby" className="text-gold/80 text-sm hover:text-gold">
+            👥 {guestCount} guests joined · Lobby &amp; scores →
+          </a>
         </div>
         <div className="flex items-center gap-3">
           <a

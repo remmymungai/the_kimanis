@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GAME_TYPE_LABELS } from "@/types/game-config";
+import { isWindowed, OPEN_REVIEW_GAMES } from "@/lib/games";
 import { cn } from "@/lib/utils";
 import type { GameInstance, Question } from "@/types";
 
@@ -112,7 +113,16 @@ export default function GameControlPage() {
 
   if (!game) return null;
 
-  const isOpenEnded = ["song_request", "marriage_advice", "confessions_wall", "find_the_guest"].includes(game.game_type);
+  const windowed = isWindowed(game.game_type);
+  // Is there another question to show after the current state?
+  const hasNextQuestion =
+    game.status === "active"
+      ? totalQuestions > 0 && game.current_question_index < totalQuestions
+      : game.status === "question_closed"
+      ? game.current_question_index + 1 < totalQuestions
+      : false;
+  const isLastClosed =
+    game.status === "question_closed" && game.current_question_index + 1 >= totalQuestions;
 
   return (
     <main className="min-h-dvh bg-dark text-white pb-8">
@@ -161,7 +171,7 @@ export default function GameControlPage() {
             </div>
           )}
 
-          {/* Answer progress */}
+          {/* Answer progress (per-question games while a question is open) */}
           {game.status === "question_open" && (
             <div className="mb-4">
               <div className="flex items-center justify-between text-sm mb-1.5">
@@ -177,6 +187,14 @@ export default function GameControlPage() {
             </div>
           )}
 
+          {/* Live submissions count for windowed games */}
+          {windowed && game.status === "active" && (
+            <div className="mb-4 flex items-center justify-between text-sm">
+              <span className="text-white/60">Submissions so far</span>
+              <span className="font-bold text-gold">{answerCount}</span>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="space-y-3">
             {game.status === "pending" && (
@@ -186,18 +204,19 @@ export default function GameControlPage() {
                 className="w-full py-4 bg-sage text-white rounded-xl font-bold text-base
                            active:scale-95 transition-all disabled:opacity-40"
               >
-                {actionLoading ? "Starting..." : "▶ Start Game"}
+                {actionLoading ? "Starting…" : "▶ Start Game"}
               </button>
             )}
 
-            {(game.status === "active" || game.status === "question_closed") && !isOpenEnded && (
+            {/* Per-question games: show next question when one remains */}
+            {!windowed && hasNextQuestion && (
               <button
                 onClick={() => callApi(`/api/admin/games/${gameId}/question`)}
                 disabled={actionLoading}
                 className="w-full py-4 bg-gold text-dark rounded-xl font-bold text-base
                            active:scale-95 transition-all disabled:opacity-40"
               >
-                {actionLoading ? "Opening..." : `▶ Show Question ${game.status === "question_closed" ? game.current_question_index + 2 : game.current_question_index + 1}`}
+                {actionLoading ? "Opening…" : `▶ Show Question ${(game.status === "question_closed" ? game.current_question_index + 2 : game.current_question_index + 1)} of ${totalQuestions}`}
               </button>
             )}
 
@@ -208,18 +227,27 @@ export default function GameControlPage() {
                 className="w-full py-4 bg-blush text-white rounded-xl font-bold text-base
                            active:scale-95 transition-all disabled:opacity-40"
               >
-                {actionLoading ? "Closing..." : "⏹ Close Question & Score"}
+                {actionLoading ? "Closing…" : "⏹ Close Question & Score"}
               </button>
             )}
 
+            {isLastClosed && (
+              <p className="text-center text-xs text-white/40">That was the last question.</p>
+            )}
+
+            {/* End Game — available for windowed (while active) and per-question (active/closed) */}
             {(game.status === "active" || game.status === "question_closed") && (
               <button
                 onClick={() => callApi(`/api/admin/games/${gameId}/complete`)}
                 disabled={actionLoading}
-                className="w-full py-3 border border-white/20 text-white/60 rounded-xl font-semibold text-sm
-                           active:scale-95 transition-all disabled:opacity-40"
+                className={cn(
+                  "w-full rounded-xl font-bold transition-all active:scale-95 disabled:opacity-40",
+                  isLastClosed || windowed
+                    ? "py-4 bg-gold text-dark text-base"
+                    : "py-3 border border-white/20 text-white/60 text-sm font-semibold"
+                )}
               >
-                {actionLoading ? "Ending..." : "End Game"}
+                {actionLoading ? "Ending…" : windowed ? "⏹ End Game & Show Results" : "End Game"}
               </button>
             )}
 
@@ -253,16 +281,39 @@ export default function GameControlPage() {
         </div>
 
         {/* Quick links */}
-        {game.game_type === "confessions_wall" && (
-          <a
-            href={`/wall?game=${gameId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="block w-full py-3 text-center border border-white/20 rounded-xl text-white/60 text-sm"
-          >
-            Open Confessions Wall Display ↗
+        <div className="space-y-3">
+          {game.game_type === "confessions_wall" && (
+            <>
+              <a href={`/admin/games/${gameId}/moderate`}
+                className="block w-full py-3 text-center bg-white/10 rounded-xl text-white text-sm font-semibold">
+                🛡 Moderate Confessions
+              </a>
+              <a href={`/wall?game=${gameId}`} target="_blank" rel="noreferrer"
+                className="block w-full py-3 text-center border border-white/20 rounded-xl text-white/60 text-sm">
+                Open Confessions Wall ↗
+              </a>
+            </>
+          )}
+
+          {OPEN_REVIEW_GAMES.includes(game.game_type) && (
+            <a href={`/display/${gameId}`} target="_blank" rel="noreferrer"
+              className="block w-full py-3 text-center bg-white/10 rounded-xl text-white text-sm font-semibold">
+              📺 Open Answers Display ↗
+            </a>
+          )}
+
+          {game.game_type === "finish_the_sentence" && (
+            <a href={`/display/${gameId}`} target="_blank" rel="noreferrer"
+              className="block w-full py-3 text-center bg-white/10 rounded-xl text-white text-sm font-semibold">
+              📺 Open Answers Display (open questions) ↗
+            </a>
+          )}
+
+          <a href="/admin/lobby"
+            className="block w-full py-3 text-center border border-white/20 rounded-xl text-white/60 text-sm">
+            👥 Guest Lobby &amp; Scores
           </a>
-        )}
+        </div>
       </div>
     </main>
   );

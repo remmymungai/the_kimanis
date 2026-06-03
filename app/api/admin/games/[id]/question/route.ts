@@ -161,7 +161,7 @@ export async function DELETE(
       scored.push({
         id: a.id,
         guest_id: a.guest_id,
-        is_correct: ps ? ps.points === maxPoints : false,
+        is_correct: ps?.is_correct ?? false,
         points_awarded: ps?.points ?? 0,
       });
     }

@@ -14,10 +14,11 @@ type Props = {
   uiState: GameUIState;
   guestId: string;
   gameInstanceId: string;
+  gameTitle: string;
   onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
-export function PriceIsRightGame({ uiState, guestId, gameInstanceId, onAnswer }: Props) {
+export function PriceIsRightGame({ uiState, guestId, gameInstanceId, gameTitle, onAnswer }: Props) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +42,7 @@ export function PriceIsRightGame({ uiState, guestId, gameInstanceId, onAnswer }:
     setLoading(false);
   }, [uiState, guestId, gameInstanceId, amount, onAnswer]);
 
-  if (uiState.phase === "waiting") return <WaitingLobby />;
+  if (uiState.phase === "waiting" || uiState.phase === "live") return <WaitingLobby gameTitle={gameTitle} />;
 
   if (uiState.phase === "question") {
     const { question, closesAt } = uiState;

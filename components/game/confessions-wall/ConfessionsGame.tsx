@@ -3,37 +3,35 @@
 import { useState, useCallback } from "react";
 import { WaitingLobby } from "@/components/shared/WaitingLobby";
 import { BackToLobbyButton } from "@/components/shared/BackToLobbyButton";
+import { CountdownTimer } from "@/components/shared/CountdownTimer";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import type { GameUIState } from "@/hooks/useGameState";
 
 type Props = {
   uiState: GameUIState;
   gameInstanceId: string;
+  gameTitle: string;
+  closesAt: Date | null;
   onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
-export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
+export function ConfessionsGame({ uiState, gameInstanceId, gameTitle, closesAt }: Props) {
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     if (!text.trim()) return;
     setLoading(true);
-
-    const supabase = createClient();
-    await supabase.from("confessions").insert({
-      game_instance_id: gameInstanceId,
-      content: text.trim(),
+    const res = await fetch("/api/play/confession", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ game_instance_id: gameInstanceId, content: text.trim() }),
     });
-
-    onAnswer(null, text.trim());
-    setSubmitted(true);
     setLoading(false);
-  }, [text, gameInstanceId, onAnswer]);
-
-  if (uiState.phase === "waiting") return <WaitingLobby message="The Confessions Wall is opening..." />;
+    if (res.ok) setSubmitted(true);
+  }, [text, gameInstanceId]);
 
   if (uiState.phase === "completed") {
     return (
@@ -46,12 +44,37 @@ export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
     );
   }
 
+  if (uiState.phase !== "live") {
+    return <WaitingLobby gameTitle={gameTitle} />;
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-dvh bg-cream flex flex-col items-center justify-center gap-4 px-6 pb-safe pt-safe text-center">
+        <div className="text-6xl">🙊</div>
+        <h2 className="text-2xl font-bold text-dark">Confession submitted!</h2>
+        <p className="text-muted-foreground text-sm">
+          Once approved by the hosts, it&apos;ll appear on the big screen.
+        </p>
+        <button
+          onClick={() => { setText(""); setSubmitted(false); }}
+          className="mt-2 px-6 py-3 rounded-xl border-2 border-olive text-olive font-semibold text-sm active:scale-95 transition-all"
+        >
+          Submit another
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh bg-cream flex flex-col pb-safe">
-      <div className="px-5 pt-safe pt-6 pb-4">
+      <div className="flex items-center justify-between px-5 pt-safe pt-6 pb-4">
         <span className="text-xs font-semibold uppercase tracking-widest text-olive/70">
           Confessions Wall
         </span>
+        {closesAt && !expired && (
+          <CountdownTimer closesAt={closesAt} size={56} onExpire={() => setExpired(true)} />
+        )}
       </div>
 
       <div className="flex-1 flex flex-col px-5 gap-6">
@@ -64,35 +87,30 @@ export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
           </p>
         </div>
 
-        {submitted ? (
-          <div className="flex flex-col items-center gap-4 py-12">
-            <div className="text-6xl">🙊</div>
-            <p className="text-lg font-bold text-dark">Confession submitted!</p>
-            <p className="text-muted-foreground text-center text-sm">
-              Keep an eye on the big screen. It&apos;s going up on the wall!
-            </p>
+        {expired ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <div className="text-5xl">⏰</div>
+            <p className="text-dark font-semibold">Time&apos;s up!</p>
+            <p className="text-muted-foreground text-sm">Watch the big screen for the confessions.</p>
           </div>
         ) : (
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="I always thought Remmy was going to marry..."
-            rows={6}
-            autoFocus
-            maxLength={280}
-            className="w-full px-4 py-3 rounded-xl border-2 border-border bg-white text-dark text-base
-                       focus:outline-none focus:border-olive transition-colors resize-none"
-          />
-        )}
-
-        {!submitted && (
-          <div className="text-right text-xs text-muted-foreground">
-            {text.length}/280
-          </div>
+          <>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="I always thought Remmy was going to marry..."
+              rows={6}
+              autoFocus
+              maxLength={280}
+              className="w-full px-4 py-3 rounded-xl border-2 border-border bg-white text-dark text-base
+                         focus:outline-none focus:border-olive transition-colors resize-none"
+            />
+            <div className="text-right text-xs text-muted-foreground">{text.length}/280</div>
+          </>
         )}
       </div>
 
-      {!submitted && (
+      {!expired && (
         <div className="px-5 pt-4 pb-6">
           <button
             onClick={handleSubmit}
@@ -103,7 +121,7 @@ export function ConfessionsGame({ uiState, gameInstanceId, onAnswer }: Props) {
               "disabled:opacity-40 shadow-md"
             )}
           >
-            {loading ? "Sending..." : "Submit Anonymously 🤫"}
+            {loading ? "Sending…" : "Submit Anonymously 🤫"}
           </button>
         </div>
       )}

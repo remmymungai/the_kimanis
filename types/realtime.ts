@@ -61,4 +61,15 @@ export type RealtimeMessage =
       type: "ANSWER_RECEIVED";
       game_instance_id: string;
       question_id: string;
+    }
+  | {
+      type: "SUBMISSION_LIVE";
+      game_instance_id: string;
+      guest_name: string;
+      content: string;
+    }
+  | {
+      type: "GUEST_JOINED";
+      guest_id: string;
+      display_name: string;
     };

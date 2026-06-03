@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGameChannel } from "@/lib/realtime/useGameChannel";
 import { useGameState } from "@/hooks/useGameState";
+import { windowCloseAt, configWindowMinutes } from "@/lib/games";
 import { WhoSaidWhatGame } from "./who-said-what/WhoSaidWhatGame";
 import { TriviaGame } from "./trivia/TriviaGame";
 import { OpenEndedGame } from "./open-ended/OpenEndedGame";
@@ -20,11 +21,10 @@ type Props = {
 
 export function GameDispatcher({ game, guestId }: Props) {
   const router = useRouter();
-  const { uiState, handleMessage, submitAnswer } = useGameState(game.id);
+  const { uiState, gameStatus, handleMessage, submitAnswer } = useGameState(game.id, game.game_type);
 
   useGameChannel({
     gameInstanceId: game.id,
-    // Bind guestId so QUESTION_CLOSED can look up this player's score
     onMessage: (msg) => handleMessage(msg, guestId),
   });
 
@@ -35,16 +35,15 @@ export function GameDispatcher({ game, guestId }: Props) {
     return () => clearTimeout(t);
   }, [uiState.phase, router]);
 
-  // Find the Guest: derive closesAt from game config
-  const findGuestClosesAt =
-    game.game_type === "find_the_guest" && game.activated_at
-      ? new Date(
-          new Date(game.activated_at).getTime() +
-          ((game.config as { window_minutes?: number }).window_minutes ?? 15) * 60 * 1000
-        )
-      : null;
+  const windowClosesAt = windowCloseAt(game.activated_at, configWindowMinutes(game.config));
 
-  const commonProps = { guestId, gameInstanceId: game.id, onAnswer: submitAnswer, uiState };
+  const commonProps = {
+    guestId,
+    gameInstanceId: game.id,
+    gameTitle: game.title,
+    onAnswer: submitAnswer,
+    uiState,
+  };
 
   switch (game.game_type) {
     case "who_said_what":
@@ -60,16 +59,24 @@ export function GameDispatcher({ game, guestId }: Props) {
       return <PriceIsRightGame {...commonProps} />;
 
     case "find_the_guest":
-      return <FindTheGuestGame {...commonProps} closesAt={findGuestClosesAt} />;
+      return <FindTheGuestGame {...commonProps} gameStatus={gameStatus} closesAt={windowClosesAt} />;
 
     case "song_request":
-      return <OpenEndedGame {...commonProps} variant="song_request" />;
+      return <OpenEndedGame {...commonProps} variant="song_request" closesAt={windowClosesAt} />;
 
     case "marriage_advice":
-      return <OpenEndedGame {...commonProps} variant="single" />;
+      return <OpenEndedGame {...commonProps} variant="single" closesAt={windowClosesAt} />;
 
     case "confessions_wall":
-      return <ConfessionsGame uiState={uiState} gameInstanceId={game.id} onAnswer={submitAnswer} />;
+      return (
+        <ConfessionsGame
+          uiState={uiState}
+          gameInstanceId={game.id}
+          gameTitle={game.title}
+          closesAt={windowClosesAt}
+          onAnswer={submitAnswer}
+        />
+      );
 
     default:
       return (

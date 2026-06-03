@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { broadcastGameEvent } from "@/lib/realtime/broadcaster";
+import { isWindowed } from "@/lib/games";
+import type { GameType } from "@/types/game-config";
 
 export async function POST(req: Request) {
   try {
@@ -12,21 +14,32 @@ export async function POST(req: Request) {
 
     const supabase = await createAdminClient();
 
-    // Verify game is still open
+    // Verify the game accepts answers right now.
+    // Per-question games: status must be 'question_open'.
+    // Windowed games (find_the_guest, song/advice): answers accepted while 'active'.
     const { data: game } = await supabase
       .from("game_instances")
-      .select("status")
+      .select("status, game_type")
       .eq("id", game_instance_id)
       .single();
 
-    if (!game || game.status !== "question_open") {
-      return NextResponse.json({ error: "Question is not open" }, { status: 409 });
+    if (!game) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    }
+
+    const gameType = game.game_type as GameType;
+    const accepting =
+      game.status === "question_open" ||
+      (game.status === "active" && isWindowed(gameType));
+
+    if (!accepting) {
+      return NextResponse.json({ error: "Not accepting answers right now" }, { status: 409 });
     }
 
     // Verify guest exists and is not blocked
     const { data: guest } = await supabase
       .from("guests")
-      .select("id, is_blocked")
+      .select("id, display_name, is_blocked")
       .eq("id", guest_id)
       .single();
 
@@ -52,12 +65,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    // Broadcast so admin counter updates in real time (no CDC needed)
+    // Admin counter updates in real time (no CDC needed)
     broadcastGameEvent(game_instance_id, {
       type: "ANSWER_RECEIVED",
       game_instance_id,
       question_id,
     }).catch(() => {});
+
+    // For open-ended review games, push the submission live to the projector display.
+    if (gameType === "song_request" || gameType === "marriage_advice" || gameType === "finish_the_sentence") {
+      broadcastGameEvent(game_instance_id, {
+        type: "SUBMISSION_LIVE",
+        game_instance_id,
+        guest_name: guest.display_name,
+        content: String(raw_answer),
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ ok: true });
   } catch {

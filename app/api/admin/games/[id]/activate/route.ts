@@ -23,22 +23,6 @@ export async function POST(
   if (gErr || !game) return NextResponse.json({ error: "Game not found" }, { status: 404 });
   if (game.status !== "pending") return NextResponse.json({ error: "Game already started" }, { status: 409 });
 
-  // For find_the_guest: call the activate-game edge function to generate questions
-  if (game.game_type === "find_the_guest") {
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/activate-game`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ game_instance_id: id }),
-      });
-    } catch {
-      // Non-fatal: questions may have been pre-created
-    }
-  }
-
   // Activate game
   const { error: uErr } = await supabase
     .from("game_instances")

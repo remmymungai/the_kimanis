@@ -1,51 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGuestSession } from "@/hooks/useGuestSession";
 import { createClient } from "@/lib/supabase/client";
-import type { GameInstance } from "@/types";
+import { SESSION_CHANNEL } from "@/lib/games";
 
 export default function LobbyPage() {
   const router = useRouter();
   const { state } = useGuestSession();
-  const [activeGame, setActiveGame] = useState<GameInstance | null>(null);
 
   useEffect(() => {
     if (state.status !== "authenticated") return;
 
     const supabase = createClient();
 
-    // Check for active game on mount
-    supabase
-      .from("game_instances")
-      .select("*")
-      .in("status", ["active", "question_open", "question_closed"])
-      .order("display_order", { ascending: true })
-      .limit(1)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          router.replace(`/play/${data.id}`);
-        }
-      });
+    // Jump into whatever game is currently live (on mount + as a poll fallback)
+    async function checkActive() {
+      const { data } = await supabase
+        .from("game_instances")
+        .select("id")
+        .in("status", ["active", "question_open", "question_closed"])
+        .order("activated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) router.replace(`/play/${data.id}`);
+    }
 
-    // Listen for game activation
+    checkActive();
+    const poll = setInterval(checkActive, 4000);
+
+    // Listen for game activation broadcast (session-wide channel)
     const channel = supabase
-      .channel("event:lobby")
-      .on(
-        "broadcast",
-        { event: "game_event" },
-        (payload) => {
-          const msg = payload.payload;
-          if (msg.type === "GAME_STATE_CHANGE" && msg.new_status === "active") {
-            router.replace(`/play/${msg.game_instance_id}`);
-          }
+      .channel(SESSION_CHANNEL)
+      .on("broadcast", { event: "game_event" }, (payload) => {
+        const msg = payload.payload;
+        if (msg.type === "GAME_STATE_CHANGE" && msg.new_status === "active") {
+          router.replace(`/play/${msg.game_instance_id}`);
         }
-      )
+      })
       .subscribe();
 
     return () => {
+      clearInterval(poll);
       supabase.removeChannel(channel);
     };
   }, [state.status, router]);

@@ -2,10 +2,14 @@
 
 import { useState, useCallback } from "react";
 import type { RealtimeMessage, QuestionPayload, LeaderboardEntry } from "@/types/realtime";
-import type { GameStatus } from "@/types/game-config";
+import type { GameStatus, GameType } from "@/types/game-config";
+import { isWindowed } from "@/lib/games";
 
 export type GameUIState =
   | { phase: "waiting" }
+  // Windowed games (find_the_guest, song_request, marriage_advice, confessions_wall)
+  // render their board/form for the whole active window.
+  | { phase: "live" }
   | { phase: "question"; question: QuestionPayload; opensAt: Date; closesAt: Date | null }
   | {
       phase: "answer_submitted";
@@ -25,8 +29,11 @@ export type GameUIState =
     }
   | { phase: "completed"; finalLeaderboard: LeaderboardEntry[] };
 
-export function useGameState(gameInstanceId: string) {
-  const [uiState, setUIState] = useState<GameUIState>({ phase: "waiting" });
+export function useGameState(gameInstanceId: string, gameType: GameType) {
+  const windowed = isWindowed(gameType);
+  const [uiState, setUIState] = useState<GameUIState>(
+    windowed ? { phase: "live" } : { phase: "waiting" }
+  );
   const [gameStatus, setGameStatus] = useState<GameStatus>("pending");
 
   const handleMessage = useCallback((msg: RealtimeMessage, guestId?: string) => {
@@ -34,7 +41,8 @@ export function useGameState(gameInstanceId: string) {
       case "GAME_STATE_CHANGE":
         setGameStatus(msg.new_status as GameStatus);
         if (msg.new_status === "active") {
-          setUIState({ phase: "waiting" });
+          // Windowed games open straight into their board; per-question games wait.
+          setUIState(windowed ? { phase: "live" } : { phase: "waiting" });
         }
         break;
 
@@ -54,12 +62,10 @@ export function useGameState(gameInstanceId: string) {
             prev.phase === "answer_submitted" ? prev.question : null;
           if (!question) return prev;
 
-          // Look up this player's score from the broadcast payload
           const playerData = guestId && msg.player_points
             ? msg.player_points[guestId]
             : null;
 
-          // If not in payload, determine correctness from submitted option vs correct option
           const submittedOptionId =
             prev.phase === "answer_submitted" ? prev.answeredOptionId : null;
           const isCorrect = playerData
@@ -84,9 +90,8 @@ export function useGameState(gameInstanceId: string) {
         setUIState({ phase: "completed", finalLeaderboard: msg.final_leaderboard });
         break;
     }
-  }, []);
+  }, [windowed]);
 
-  // submitAnswer now tracks both the display text and the raw option id
   const submitAnswer = useCallback((optionId: string | null, displayText: string) => {
     setUIState((prev) => {
       if (prev.phase !== "question") return prev;
