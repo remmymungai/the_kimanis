@@ -16,7 +16,8 @@
     "additionalDirectories": [
       "/Users/remmy/Documents/Code/the_kimanis/app/play",
       "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/games/[id]",
-      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/confessions"
+      "/Users/remmy/Documents/Code/the_kimanis/app/api/admin/confessions",
+      "/Users/remmy/.claude/projects/-Users-remmy/memory"
     ]
   }
 }
