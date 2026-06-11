@@ -71,6 +71,7 @@ export function GameDispatcher({ game, guestId }: Props) {
       return (
         <ConfessionsGame
           uiState={uiState}
+          guestId={guestId}
           gameInstanceId={game.id}
           gameTitle={game.title}
           closesAt={windowClosesAt}

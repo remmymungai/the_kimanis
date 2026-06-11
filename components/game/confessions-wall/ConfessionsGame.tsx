@@ -9,13 +9,14 @@ import type { GameUIState } from "@/hooks/useGameState";
 
 type Props = {
   uiState: GameUIState;
+  guestId: string;
   gameInstanceId: string;
   gameTitle: string;
   closesAt: Date | null;
   onAnswer: (optionId: string | null, displayText: string) => void;
 };
 
-export function ConfessionsGame({ uiState, gameInstanceId, gameTitle, closesAt }: Props) {
+export function ConfessionsGame({ uiState, guestId, gameInstanceId, gameTitle, closesAt }: Props) {
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,11 +28,11 @@ export function ConfessionsGame({ uiState, gameInstanceId, gameTitle, closesAt }
     const res = await fetch("/api/play/confession", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ game_instance_id: gameInstanceId, content: text.trim() }),
+      body: JSON.stringify({ game_instance_id: gameInstanceId, content: text.trim(), guest_id: guestId }),
     });
     setLoading(false);
     if (res.ok) setSubmitted(true);
-  }, [text, gameInstanceId]);
+  }, [text, gameInstanceId, guestId]);
 
   if (uiState.phase === "completed") {
     return (

@@ -36,7 +36,6 @@ export function FindTheGuestGame({
 }: Props) {
   const [cells, setCells] = useState<BingoCell[]>([]);
   const [activeCell, setActiveCell] = useState<BingoCell | null>(null);
-  const [loading, setLoading] = useState(false);
   const [expired, setExpired] = useState(false);
 
   useEffect(() => {
@@ -54,9 +53,26 @@ export function FindTheGuestGame({
   }, [gameInstanceId]);
 
   const handleOptionSelect = useCallback(
-    async (cell: BingoCell, optionId: string, optionText: string) => {
-      setLoading(true);
-      await fetch("/api/play/answer", {
+    (cell: BingoCell, optionId: string, optionText: string) => {
+      // Optimistic: update the UI immediately so there's no lag / double-click window.
+      let alreadyAnswered = false;
+      setCells((prev) => {
+        const target = prev.find((c) => c.question.id === cell.question.id);
+        if (target?.answered) {
+          alreadyAnswered = true;
+          return prev;
+        }
+        // Mark answered (neutral — correctness is revealed at the end, no spoilers)
+        return prev.map((c) =>
+          c.question.id === cell.question.id ? { ...c, answered: true } : c
+        );
+      });
+      if (alreadyAnswered) return; // guard re-entry: never submit a cell twice
+      setActiveCell(null);
+      onAnswer(optionId, optionText);
+
+      // Fire the network request in the background; UI does not wait on it.
+      fetch("/api/play/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,14 +81,7 @@ export function FindTheGuestGame({
           guest_id: guestId,
           raw_answer: optionId,
         }),
-      });
-      // Mark answered (neutral — correctness is revealed at the end, no spoilers)
-      setCells((prev) =>
-        prev.map((c) => (c.question.id === cell.question.id ? { ...c, answered: true } : c))
-      );
-      setActiveCell(null);
-      onAnswer(optionId, optionText);
-      setLoading(false);
+      }).catch((err) => console.error("Failed to submit answer", err));
     },
     [guestId, gameInstanceId, onAnswer]
   );
@@ -93,6 +102,7 @@ export function FindTheGuestGame({
   }
 
   const answeredCount = cells.filter((c) => c.answered).length;
+  const allAnswered = cells.length > 0 && answeredCount === cells.length;
 
   return (
     <div className="min-h-dvh bg-cream flex flex-col pb-safe">
@@ -115,6 +125,14 @@ export function FindTheGuestGame({
           <div className="text-5xl">⏰</div>
           <p className="text-dark font-semibold text-lg">Time&apos;s up!</p>
           <p className="text-muted-foreground text-sm">Waiting for the final leaderboard on the big screen…</p>
+        </div>
+      ) : allAnswered ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <div className="text-5xl">✅</div>
+          <p className="text-dark font-semibold text-lg">All done!</p>
+          <p className="text-muted-foreground text-sm">
+            Sit tight — waiting for the game to finish. Look up at the big screen for the results!
+          </p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 pb-4">
@@ -152,7 +170,6 @@ export function FindTheGuestGame({
                 .map((opt) => (
                   <button
                     key={opt.id}
-                    disabled={loading}
                     onClick={() => handleOptionSelect(activeCell, opt.id, opt.text)}
                     className="rounded-xl py-4 bg-cream border-2 border-border text-dark font-semibold
                                active:scale-95 transition-all duration-100 active:bg-olive/10 active:border-olive"

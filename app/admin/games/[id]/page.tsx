@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import { GAME_TYPE_LABELS } from "@/types/game-config";
 import { isWindowed, OPEN_REVIEW_GAMES } from "@/lib/games";
@@ -21,6 +22,19 @@ export default function GameControlPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [showQr, setShowQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+
+  const joinUrl = typeof window !== "undefined" ? `${window.location.origin}/join` : "";
+
+  useEffect(() => {
+    if (!showQr || !joinUrl || qrDataUrl) return;
+    QRCode.toDataURL(joinUrl, {
+      width: 512,
+      margin: 2,
+      color: { dark: "#1A1A1A", light: "#F5F0E8" },
+    }).then(setQrDataUrl);
+  }, [showQr, joinUrl, qrDataUrl]);
 
   const refreshGame = useCallback(async () => {
     const supabase = createClient();
@@ -133,12 +147,12 @@ export default function GameControlPage() {
           <h1 className="font-bold truncate">{game.title}</h1>
           <p className="text-white/50 text-xs">{GAME_TYPE_LABELS[game.game_type]}</p>
         </div>
-        <a
-          href={`/admin/games/${gameId}/qrcode`}
+        <button
+          onClick={() => setShowQr(true)}
           className="px-3 py-1.5 border border-white/20 rounded-xl text-xs text-white/60"
         >
           QR Code
-        </a>
+        </button>
       </header>
 
       <div className="p-5 space-y-6 max-w-lg mx-auto">
@@ -309,12 +323,67 @@ export default function GameControlPage() {
             </a>
           )}
 
+          {game.game_type === "find_the_guest" && (
+            <a href={`/display/${gameId}`} target="_blank" rel="noreferrer"
+              className="block w-full py-3 text-center bg-white/10 rounded-xl text-white text-sm font-semibold">
+              📺 Open Reveal &amp; Leaderboard ↗
+            </a>
+          )}
+
+          {(game.game_type === "trivia" || game.game_type === "who_said_what") && (
+            <a href={`/display/${gameId}`} target="_blank" rel="noreferrer"
+              className="block w-full py-3 text-center bg-white/10 rounded-xl text-white text-sm font-semibold">
+              📺 Open Big-Screen Questions ↗
+            </a>
+          )}
+
           <a href="/admin/lobby"
             className="block w-full py-3 text-center border border-white/20 rounded-xl text-white/60 text-sm">
             👥 Guest Lobby &amp; Scores
           </a>
         </div>
       </div>
+
+      {showQr && (
+        <div
+          className="fixed inset-0 bg-dark/80 flex items-center justify-center z-50 p-6"
+          onClick={() => setShowQr(false)}
+        >
+          <div
+            className="bg-cream rounded-3xl p-8 flex flex-col items-center gap-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-dark">Scan to Join</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Remmy &amp; Mbete&apos;s Engagement Party
+              </p>
+            </div>
+
+            {qrDataUrl ? (
+              <div className="bg-white rounded-2xl p-5 shadow-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrDataUrl} alt="Join QR Code" className="w-60 h-60" />
+              </div>
+            ) : (
+              <div className="w-60 h-60 rounded-2xl bg-muted flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-4 border-olive border-t-transparent animate-spin" />
+              </div>
+            )}
+
+            <p className="text-muted-foreground text-center text-sm font-medium break-all">
+              {joinUrl}
+            </p>
+
+            <button
+              onClick={() => setShowQr(false)}
+              className="w-full py-3 bg-dark text-white rounded-xl font-semibold active:scale-95 transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

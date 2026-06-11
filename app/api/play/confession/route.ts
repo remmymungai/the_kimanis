@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   try {
-    const { game_instance_id, content } = await req.json();
+    const { game_instance_id, content, guest_id } = await req.json();
     if (!game_instance_id || !content?.trim()) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
@@ -22,10 +22,13 @@ export async function POST(req: Request) {
     }
 
     // Always pending — appears on the wall only after admin approval.
+    // guest_id is stored for post-party reference only; it is never exposed on
+    // any wall, broadcast, or moderation screen (confessions stay anonymous).
     const { error } = await supabase.from("confessions").insert({
       game_instance_id,
       content: String(content).trim().slice(0, 280),
       is_approved: false,
+      guest_id: guest_id ?? null,
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
