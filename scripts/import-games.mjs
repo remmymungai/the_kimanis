@@ -33,6 +33,13 @@ import path from "node:path";
 const EVENT_SLUG = "kimanis-2026";
 const DEFAULT_FILE = "import/Gaming Sheet Import.xlsx";
 
+// Manifest of guests this script has seeded (per event). Lets a reseed prune
+// participants that were dropped from the sheet — without ever touching guests
+// who joined on their own. (A reseed wipes games, which cascade-deletes answers,
+// so "has no answers" cannot tell a stale seed-guest from a real one — hence we
+// remember exactly which guest rows we created.)
+const MANIFEST_FILE = path.resolve(process.cwd(), "scripts/.seed-manifest.json");
+
 // Per-game settings. Titles are what guests see. Timings/windows are tuned for
 // the party; tweak here if you want a different pace.
 const GAME_SETTINGS = {
@@ -227,6 +234,19 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// Manifest: { [eventId]: [{ id, name }] } — the participant guests we seeded.
+function loadManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveManifest(m) {
+  fs.writeFileSync(MANIFEST_FILE, JSON.stringify(m, null, 2) + "\n");
 }
 
 function toGameType(sheetName) {
@@ -517,11 +537,41 @@ async function commit(plan) {
     console.log(c.dim("No existing games to wipe."));
   }
 
-  // Seed guests for Find the Guest participants (reclaim by name, else create).
-  // The activate-game function matches each fact's correct answer to a guest by
-  // UUID, so the named participants must exist as guests with stable ids.
-  const nameToGuestId = new Map();
   const ftg = plan.games.find((g) => g.gameType === "find_the_guest");
+  const currentParticipants = ftg?.participants ?? [];
+  const currentNorm = new Set(currentParticipants.map(normName));
+
+  // PRUNE stale seed-guests: anyone we seeded in a previous run who is no longer
+  // a participant (e.g. dropped from the sheet) gets removed, so they stop
+  // appearing in the lobby/leaderboard. We only ever touch guests recorded in
+  // our own manifest — never guests who joined on their own. If a pruned guest
+  // somehow has answers (a real person reused that name and played), we keep
+  // them and warn instead of deleting their scores.
+  const manifest = loadManifest();
+  const prevSeeded = manifest[event.id] ?? [];
+  const orphans = prevSeeded.filter((p) => !currentNorm.has(normName(p.name)));
+  if (orphans.length) {
+    console.log(c.dim(`\nChecking ${orphans.length} previously-seeded guest(s) no longer in the sheet…`));
+    for (const o of orphans) {
+      const { data: g } = await supabase
+        .from("guests").select("id").eq("id", o.id).maybeSingle();
+      if (!g) continue; // already gone
+      const { count } = await supabase
+        .from("answers").select("id", { count: "exact", head: true }).eq("guest_id", o.id);
+      if (count && count > 0) {
+        console.log(c.yellow(`  ⚠ Keeping "${o.name}" — they have ${count} answer(s) (real player).`));
+        continue;
+      }
+      const { error: delErr } = await supabase.from("guests").delete().eq("id", o.id);
+      if (delErr) throw new Error(`Failed to prune guest "${o.name}": ${delErr.message}`);
+      console.log(c.yellow(`  ✖ Removed stale seed guest "${o.name}".`));
+    }
+  }
+
+  // Seed guests for Find the Guest participants (reclaim by name, else create).
+  // The find_the_guest answer options match each guest by UUID, so the named
+  // participants must exist as guests with stable ids.
+  const nameToGuestId = new Map();
   if (ftg && ftg.participants?.length) {
     console.log(c.dim(`\nSeeding ${ftg.participants.length} Find-the-Guest participants as guests…`));
     for (const name of ftg.participants) {
@@ -598,6 +648,11 @@ async function commit(plan) {
     }
     console.log(c.green(`✔ Seeded "${g.title}" — ${rows.length} question(s).`));
   }
+
+  // Record exactly which guests we seeded, so the next reseed can prune any that
+  // get dropped from the sheet.
+  manifest[event.id] = [...nameToGuestId.entries()].map(([name, id]) => ({ id, name }));
+  saveManifest(manifest);
 
   console.log(c.green(c.bold("\n✅ Done. Review everything at /admin/review before starting.")));
 }
