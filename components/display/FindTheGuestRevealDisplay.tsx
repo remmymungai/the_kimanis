@@ -9,11 +9,15 @@ import type { LeaderboardEntry } from "@/types/realtime";
 type Clue = { id: string; prompt: string; answer: string };
 type Option = { id: string; text: string; is_correct?: boolean };
 
+// Backgrounds are always opaque and light so the dark text stays legible on
+// top of the page's near-black (bg-dark) background. Variety comes from the
+// border accent, not a translucent fill (a translucent fill over bg-dark
+// renders dark-on-dark and is unreadable).
 const CARD_COLORS = [
   "bg-cream border-gold",
   "bg-white border-olive",
-  "bg-blush/10 border-blush",
-  "bg-sage/10 border-sage",
+  "bg-cream border-blush",
+  "bg-white border-sage",
 ];
 
 type Props = { gameId: string; title: string };

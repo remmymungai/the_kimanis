@@ -7,11 +7,13 @@ import { cn } from "@/lib/utils";
 type Answer = { id: string; name: string; text: string };
 type Group = { questionId: string; prompt: string; index: number; answers: Answer[] };
 
+// Opaque light fills only — these cards sit on bg-dark and use text-dark, so a
+// translucent fill would render dark-on-dark and be unreadable.
 const CARD_COLORS = [
   "bg-cream border-gold",
   "bg-white border-olive",
-  "bg-blush/10 border-blush",
-  "bg-sage/10 border-sage",
+  "bg-cream border-blush",
+  "bg-white border-sage",
 ];
 
 type Props = { gameId: string; title: string };

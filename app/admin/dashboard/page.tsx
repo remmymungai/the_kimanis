@@ -71,6 +71,12 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <a
+            href="/admin/review"
+            className="px-4 py-2 rounded-xl border border-white/20 text-white/80 font-semibold text-sm hover:border-gold hover:text-gold"
+          >
+            🔍 Review questions
+          </a>
+          <a
             href="/admin/games/new"
             className="px-4 py-2 bg-gold text-dark rounded-xl font-semibold text-sm"
           >

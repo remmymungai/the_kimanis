@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "seed:games": "node scripts/import-games.mjs",
+    "seed:games:commit": "node scripts/import-games.mjs --commit"
   },
   "dependencies": {
     "next": "16.2.6",

@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils";
 
 type Card = { id: string; name: string; text: string };
 
+// Opaque light fills only — these cards sit on bg-dark and use text-dark, so a
+// translucent fill would render dark-on-dark and be unreadable.
 const CARD_COLORS = [
   "bg-cream border-gold",
   "bg-white border-olive",
-  "bg-blush/10 border-blush",
-  "bg-sage/10 border-sage",
+  "bg-cream border-blush",
+  "bg-white border-sage",
 ];
 
 /** song_request stores JSON; everything else is plain text. */

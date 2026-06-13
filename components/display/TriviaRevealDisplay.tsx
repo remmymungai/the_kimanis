@@ -6,11 +6,13 @@ import { Leaderboard } from "@/components/shared/Leaderboard";
 import { cn } from "@/lib/utils";
 import type { RealtimeMessage, LeaderboardEntry, QuestionOption } from "@/types/realtime";
 
+// Opaque light fills only — non-correct options sit on bg-dark and use
+// text-dark, so a translucent fill would render dark-on-dark and be unreadable.
 const OPTION_COLORS = [
-  "bg-gold/20 border-gold",
-  "bg-olive/15 border-olive",
-  "bg-blush/15 border-blush",
-  "bg-sage/15 border-sage",
+  "bg-cream border-gold",
+  "bg-white border-olive",
+  "bg-cream border-blush",
+  "bg-white border-sage",
 ];
 
 type Props = { gameId: string; title: string };
